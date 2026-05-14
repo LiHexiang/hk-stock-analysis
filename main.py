@@ -1,29 +1,48 @@
 import akshare as ak
 import requests
 import os
+import pandas as pd
+import json
 
 def analyze():
     try:
-        # 1. 抓取港股待上市列表
-        # df = ak.stock_hk_ipo_wait_list()
-        # df = ak.stock_hk_ipo_list_preview()
-        df = ak.stock_hk_ipo_list_mainland()
-        if df.empty:
-            return "今日无待上市股票数据。"
-
-        # 2. 简单的评分逻辑 (这里可以根据你的策略调整)
-        report = ["【港股打新每日分析】"]
-        for _, row in df.iterrows():
-            name = row['股票名称']
-            # 模拟评分：这里你可以根据发行价、中签率等字段写逻辑
-            # 目前以演示为主，直接给一个基于随机和行业热度的模拟分
-            score = 60 
-            advice = "建议参与" if score > 75 else "观望"
-            report.append(f"📌 {name} | 评分: {score} | 建议: {advice}")
+        # 直接访问东方财富的港股新股数据接口（这是一个公开的 JSON 接口）
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_HK_IPO_LIST&columns=ALL&quoteType=0&pageNumber=1&pageSize=50&sortColumns=LISTING_DATE&sortTypes=-1"
         
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        data = response.json()
+        
+        # 提取股票列表
+        stock_list = data.get('result', {}).get('data', [])
+        
+        if not stock_list:
+            return "目前没有查询到待上市的港股数据。"
+
+        report = ["📊 【港股打新每日分析】"]
+        
+        for stock in stock_list:
+            name = stock.get('SECURITY_NAME_ABBR', '未知股票')
+            # 过滤掉已经上市的（根据你的需求，可以判断上市日期）
+            # 这里简单抓取前 5 个即将上市或刚上市的
+            code = stock.get('SECURITY_CODE', 'N/A')
+            industry = stock.get('INDUSTRY', '未知行业')
+            
+            # 你的核心打分逻辑
+            score = 70 # 默认分
+            if "医疗" in industry or "科技" in industry: score += 10
+            
+            report.append(f"--------------------\n📌 {name} ({code})\n行业: {industry}\n📈 评分: {score}")
+            
+            if len(report) >= 6: break # 每天只看前 5 个最热的
+
         return "\n".join(report)
+
     except Exception as e:
-        return f"分析出错: {str(e)}"
+        return f"接口抓取失败: {str(e)}"
 
 def send_msg(content):
     push_key = os.getenv("PUSH_KEY")
