@@ -24,9 +24,23 @@ def analyze():
         return f"分析出错: {str(e)}"
 
 def send_msg(content):
-    # 从环境变量读取 Key 保证安全
     push_key = os.getenv("PUSH_KEY")
-    requests.get(f"https://api2.pushdeer.com/send?pushkey={push_key}&text={content}")
+    # 使用你刚才测试成功的地址：message/push
+    url = "https://api2.pushdeer.com/message/push"
+    
+    payload = {
+        "pushkey": push_key,
+        "text": content,
+        "type": "markdown" # 使用 markdown 格式，收到的消息排版更漂亮
+    }
+    
+    try:
+        # 建议加上 timeout=10，防止网络波动导致 Action 挂起
+        response = requests.post(url, data=payload, timeout=10)
+        print(f"推送状态码: {response.status_code}")
+        print(f"服务器返回: {response.text}")
+    except Exception as e:
+        print(f"发送失败: {e}")
 
 if __name__ == "__main__":
     result = analyze()
