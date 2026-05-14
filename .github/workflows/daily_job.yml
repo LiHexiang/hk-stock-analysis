@@ -1,0 +1,21 @@
+name: Daily Stock Analysis
+on:
+  schedule:
+    - cron: '0 2 * * *' # 这里的 2:00 是 UTC 时间，对应北京时间 10:00
+  workflow_dispatch: # 允许你手动点击测试
+
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install akshare requests pandas
+      - name: Run analysis
+        env:
+          PUSH_KEY: ${{ secrets.PUSH_KEY }}
+        run: python main.py
