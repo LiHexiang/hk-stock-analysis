@@ -6,56 +6,43 @@ import json
 
 def analyze():
     try:
-        # 1. 东方财富港股数据接口
-        url = "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_HK_IPO_LIST&columns=ALL&quoteType=0&pageNumber=1&pageSize=50&sortColumns=LISTING_DATE&sortTypes=-1"
+        # 换成这个：针对申购中新股的接口
+        # RPT_HK_IPO_APPLY 专门指代申购/招股中的数据
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_HK_IPO_APPLY&columns=ALL&quoteType=0&pageNumber=1&pageSize=50&sortColumns=APPLY_START_DATE&sortTypes=-1"
         
-        # 2. 强化请求头，模拟真实浏览器访问
         headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://data.eastmoney.com/hk/xg/default.html", # 告诉服务器我从哪来
-            "Accept": "application/json, text/plain, */*"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://data.eastmoney.com/hk/xg/default.html"
         }
         
         response = requests.get(url, headers=headers, timeout=15)
-        
-        # 增加状态码检查
-        if response.status_code != 200:
-            return f"接口返回异常，状态码: {response.status_code}"
-            
         data = response.json()
         
-        # 3. 防御性获取数据 (避免 NoneType 报错)
         result = data.get('result')
         if not result:
-            # 打印出返回的原始数据片段，方便调试
-            return f"接口逻辑改变，未找到 result 字段。原始返回: {str(data)[:100]}"
+            # 如果申购列表为空，尝试抓取“待上市”列表（过聆讯但还没开始申购或刚结束申购的）
+            return "目前没有正在申购中的港股新股。"
             
         stock_list = result.get('data', [])
         
-        if not stock_list:
-            return "目前没有查询到待上市的港股数据（列表为空）。"
-
-        # 4. 构建报告
-        report = ["📊 【港股打新每日分析】"]
+        report = ["🔔 【发现正在申购的港股】"]
         for stock in stock_list:
-            name = stock.get('SECURITY_NAME_ABBR', '未知股票')
+            name = stock.get('SECURITY_NAME_ABBR', '未知')
             code = stock.get('SECURITY_CODE', 'N/A')
-            industry = stock.get('INDUSTRY', '未知行业')
+            # 港股打新的关键指标：入场费、超购倍数、保荐人
+            price_max = stock.get('ISSUE_PRICE_MAX', '待定')
+            apply_end = stock.get('APPLY_END_DATE', 'N/A')[:10] # 截取日期
             
-            # 简单的打分逻辑：医疗/科技/人工智能加分
-            score = 60
-            if any(k in industry for k in ["医疗", "科技", "生物", "软件", "智能"]):
-                score += 20
+            # 打分逻辑升级：入场费越低、行业越热、分越高
+            score = 75
+            if "科技" in stock.get('INDUSTRY', ''): score += 10
             
-            # 只有评分大于 50 的才推送（或者你可以保留全部）
-            report.append(f"--------------------\n📌 {name} ({code})\n行业: {industry}\n📈 评分: {score}")
-            
-            if len(report) >= 6: break # 最多取前 5 条
+            report.append(f"--------------------\n📌 {name} ({code})\n💰 最高发售价: {price_max} HKD\n📅 申购截止: {apply_end}\n📈 建议评分: {score}")
 
         return "\n".join(report)
 
     except Exception as e:
-        return f"脚本执行发生异常: {str(e)}"
+        return f"数据解析失败: {str(e)}"
 
 def send_msg(content):
     push_key = os.getenv("PUSH_KEY")
