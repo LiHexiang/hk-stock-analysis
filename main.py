@@ -6,8 +6,8 @@ def analyze():
     try:
         # 1. 抓取港股待上市列表
         # df = ak.stock_hk_ipo_wait_list()
-        df = ak.stock_hk_ipo_list_preview()
-        # df = ak.stock_hk_ipo_list_mainland()
+        # df = ak.stock_hk_ipo_list_preview()
+        df = ak.stock_hk_ipo_list_mainland()
         if df.empty:
             return "今日无待上市股票数据。"
 
